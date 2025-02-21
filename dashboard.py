@@ -84,7 +84,7 @@ st.sidebar.download_button(
 )
 
 # Create tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Hourly Patterns", "Daily Patterns", "Monthly Patterns", "Yearly Trend", "Customer Analysis"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Hourly Patterns", "Daily Patterns", "Monthly Patterns", "Yearly Trend", "Time of Day Analysis"])
 
 with tab1:
     st.header("Hourly Rental Patterns")
@@ -201,44 +201,39 @@ with tab4:
     - 2011 Average Daily Rentals: **{yearly_trend['mean'].iloc[0]:.0f}**
     - 2012 Average Daily Rentals: **{yearly_trend['mean'].iloc[1]:.0f}**
     """)
-
+    
 with tab5:
-    st.header("Customer Behavior Analysis (RFM)")
+    st.header("Time of Day Analysis")
     
-    # Calculate RFM metrics
-    # Recency: days since last rental
-    last_date = date_filtered_df['dteday'].max()
-    rfm_df = date_filtered_df.groupby('registered').agg({
-        'dteday': lambda x: (last_date - x.max()).days,  # Recency
-        'instant': 'count',  # Frequency
-        'cnt': 'sum'  # Monetary (total rentals)
-    }).reset_index()
+    # Create time of day categories
+    bins = [-1, 6, 9, 15, 19, 23]
+    labels = ['Early Morning', 'Morning Rush', 'Daytime', 'Evening Rush', 'Night']
+    date_filtered_df['time_of_day'] = pd.cut(date_filtered_df['hr'], bins=bins, labels=labels)
     
-    # Rename columns
-    rfm_df.columns = ['customer_id', 'recency', 'frequency', 'total_rentals']
+    # Aggregate rentals by time of day
+    time_usage = date_filtered_df.groupby('time_of_day')['cnt'].mean().reset_index()
     
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    # Create visualization
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sns.barplot(data=time_usage, x='time_of_day', y='cnt', ax=ax)
     
-    # Recency Distribution
-    sns.histplot(data=rfm_df, x='recency', bins=30, ax=axes[0])
-    axes[0].set_title('Days Since Last Rental')
-    axes[0].set_xlabel('Days')
-    axes[0].set_ylabel('Number of Customers')
+    # Customize the plot
+    ax.set_title('Average Bike Rentals by Time of Day')
+    ax.set_xlabel('Time Period')
+    ax.set_ylabel('Average Number of Rentals')
+    plt.xticks(rotation=45)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
     
-    # Frequency Distribution
-    sns.histplot(data=rfm_df, x='frequency', bins=30, ax=axes[1])
-    axes[1].set_title('Number of Rentals per Customer')
-    axes[1].set_xlabel('Number of Rentals')
-    axes[1].set_ylabel('Number of Customers')
-    
-    # Total Rentals Distribution
-    sns.histplot(data=rfm_df, x='total_rentals', bins=30, ax=axes[2])
-    axes[2].set_title('Total Rentals by Customer')
-    axes[2].set_xlabel('Total Rentals')
-    axes[2].set_ylabel('Number of Customers')
-    
-    plt.tight_layout()
+    # Show the plot in Streamlit
     st.pyplot(fig)
+    
+    # Add insights
+    st.subheader("Key Insights - Time of Day Pattern")
+    st.write("""
+    - Peak rental times occur during morning and evening rush hours
+    - Lowest rental activity is during early morning hours
+    - Moderate rental activity during daytime hours
+    """)
 
 # Overall patterns summary
 st.markdown("---")
